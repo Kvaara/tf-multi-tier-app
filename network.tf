@@ -3,6 +3,7 @@ resource "oci_core_vcn" "this" {
 
   cidr_blocks  = var.vcn_cidr_blocks // Private CIDR block based on RFC 1918. Reserves 14 IP addresses.
   display_name = "${var.namespace}-vcn"
+  dns_label    = "multitierapp"
 }
 
 resource "oci_core_subnet" "public" {
@@ -10,9 +11,8 @@ resource "oci_core_subnet" "public" {
   compartment_id             = var.tenancy_ocid
   vcn_id                     = oci_core_vcn.this.id
   prohibit_public_ip_on_vnic = false
-  display_name               = "${var.namespace}-subnet"
-  #   route_table_id    = oci_core_route_table.test_route_table.id
-  #   security_list_ids = var.subnet_security_list_ids
+  display_name               = "${var.namespace}-public-subnet"
+  dns_label                  = "publicsubnet"
 }
 
 resource "oci_core_subnet" "private" {
@@ -20,9 +20,8 @@ resource "oci_core_subnet" "private" {
   compartment_id             = var.tenancy_ocid
   vcn_id                     = oci_core_vcn.this.id
   prohibit_public_ip_on_vnic = true
-  display_name               = "${var.namespace}-subnet"
-  #   route_table_id    = oci_core_route_table.test_route_table.id
-  #   security_list_ids = var.subnet_security_list_ids
+  display_name               = "${var.namespace}-private-subnet"
+  dns_label                  = "privatesubnet"
 }
 
 resource "oci_core_network_security_group" "for_lb" {
@@ -38,8 +37,6 @@ resource "oci_core_network_security_group_security_rule" "for_lb1" {
   protocol                  = "6"
 
   description = "Allow HTTP traffic from outside to ${oci_load_balancer_load_balancer.this.display_name}"
-  #   destination = var.network_security_group_security_rule_destination
-  #   destination_type = var.network_security_group_security_rule_destination_type
 
   source      = "0.0.0.0/0" // Allows connections from any IPv4 address.
   source_type = "CIDR_BLOCK"
@@ -50,39 +47,26 @@ resource "oci_core_network_security_group_security_rule" "for_lb1" {
       max = 80
       min = 80
     }
-    # source_port_range {
-    #   #Required
-    #   max = var.network_security_group_security_rule_tcp_options_source_port_range_max
-    #   min = var.network_security_group_security_rule_tcp_options_source_port_range_min
-    # }
   }
 }
 
-# resource "oci_core_network_security_group_security_rule" "for_lb2" {
-#   network_security_group_id = oci_core_network_security_group.for_lb.id
-#   direction                 = "INGRESS"
-#   protocol                  = "6"
+resource "oci_core_network_security_group_security_rule" "for_lb2" {
+  network_security_group_id = oci_core_network_security_group.for_lb.id
+  direction                 = "EGRESS"
+  protocol                  = "6"
 
-#   description = "Allow HTTP traffic from outside to ${oci_load_balancer_load_balancer.this.display_name}"
-#   #   destination = var.network_security_group_security_rule_destination
-#   #   destination_type = var.network_security_group_security_rule_destination_type
+  description      = "Allow egress connections towards ${oci_core_instance.this.display_name}."
+  destination      = oci_core_network_security_group.for_compute_instance.id
+  destination_type = "NETWORK_SECURITY_GROUP"
 
-#   source      = "0.0.0.0/0" // Allows connections from any IPv4 address.
-#   source_type = "CIDR_BLOCK"
-#   tcp_options {
-
-#     destination_port_range {
-#       #Required
-#       max = 80
-#       min = 80
-#     }
-#     # source_port_range {
-#     #   #Required
-#     #   max = var.network_security_group_security_rule_tcp_options_source_port_range_max
-#     #   min = var.network_security_group_security_rule_tcp_options_source_port_range_min
-#     # }
-#   }
-# }
+  tcp_options {
+    destination_port_range {
+      #Required
+      max = 8080
+      min = 8080
+    }
+  }
+}
 
 resource "oci_core_network_security_group" "for_compute_instance" {
   compartment_id = var.tenancy_ocid
@@ -97,8 +81,6 @@ resource "oci_core_network_security_group_security_rule" "for_compute_instance" 
   protocol                  = "6"
 
   description = "Allow HTTP traffic from ${oci_load_balancer_load_balancer.this.display_name} to ${oci_core_instance.this.display_name}"
-  #   destination = var.network_security_group_security_rule_destination
-  #   destination_type = var.network_security_group_security_rule_destination_type
 
   source      = oci_core_network_security_group.for_lb.id // Allows connections from any IPv4 address.
   source_type = "NETWORK_SECURITY_GROUP"
@@ -109,10 +91,33 @@ resource "oci_core_network_security_group_security_rule" "for_compute_instance" 
       max = 8080
       min = 8080
     }
-    # source_port_range {
-    #   #Required
-    #   max = var.network_security_group_security_rule_tcp_options_source_port_range_max
-    #   min = var.network_security_group_security_rule_tcp_options_source_port_range_min
-    # }
+  }
+}
+
+// MySQL Databases in OCI don't support NSGs so you have to use security lists as the primary firewalls.
+// In a production environment, default security lists shouldn't be used.
+// You should create a self-contained security list and assign it to the private subnet where MySQL DB resides. 
+resource "oci_core_default_security_list" "this" {
+  manage_default_resource_id = oci_core_vcn.this.default_security_list_id
+  ingress_security_rules {
+    source      = "${oci_core_instance.this.private_ip}/32"
+    source_type = "CIDR_BLOCK"
+    description = "Allow MySQL database to accept connections from ${oci_core_instance.this.display_name}."
+    protocol    = 6
+    tcp_options {
+      min = 3306
+      max = 3306
+    }
+  }
+
+  egress_security_rules {
+    destination      = "${oci_mysql_mysql_db_system.this.ip_address}/32"
+    destination_type = "CIDR_BLOCK"
+    description      = "Allow egress connections towards ${oci_mysql_mysql_db_system.this.display_name}."
+    protocol         = 6
+    tcp_options {
+      min = 3306
+      max = 3306
+    }
   }
 }
