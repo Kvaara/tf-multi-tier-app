@@ -9,16 +9,17 @@ resource "oci_core_instance" "this" {
     nsg_ids          = [oci_core_network_security_group.for_compute_instance.id]
     subnet_id        = oci_core_subnet.private.id
     assign_public_ip = false
+    private_ip       = local.compute_instance_ip
   }
 
   metadata = {
     ssh_authorized_keys = var.public_ssh_key
-    user-data           = base64encode(templatefile("${path.module}/cloud_config.yaml", local.db_config))
+    user_data           = data.cloudinit_config.this.rendered
   }
 
   shape_config {
-    memory_in_gbs = 4
-    ocpus         = 1
+    memory_in_gbs = var.shape_config.memory_in_gbs
+    ocpus         = var.shape_config.ocpus
   }
 
   source_details {

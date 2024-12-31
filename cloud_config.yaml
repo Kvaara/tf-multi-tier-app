@@ -1,4 +1,3 @@
-#cloud-config
 write_files:
   - path: /etc/server.conf
     owner: root:root
@@ -10,11 +9,22 @@ write_files:
         "database": "${database}",
         "netloc": "${hostname}:${port}"
       }
+# Ubuntu images in OCI don't use the UFW tool to manage iptables, which is why we have to add a rule using iptables itself.
+# We use the -I argument to insert instead of -A to append because we want this rule at the top of the list.
+# Otherwise, an ICMP Reject rule will take precedence and reject the traffic coming from the TCP port 8080.
 runcmd:
+  - iptables -I INPUT 1 -p tcp -m state --state NEW -m tcp --dport 8080 -j ACCEPT
+  - iptables -I OUTPUT 1 -p tcp --dport 3306 -j ACCEPT
+  - iptables-save > /etc/iptables/rules.v4
+  - netfilter-persistent save
+  - iptables -L
   - curl -sL https://api.github.com/repos/scottwinkler/vanilla-webserver-src/releases/latest | jq -r ".assets[].browser_download_url" | wget -qi -
   - unzip deployment.zip
   - ./deployment/server
+package_update: true
+package_upgrade: true
 packages:
   - jq
   - wget
   - unzip
+  - iptables-persistent

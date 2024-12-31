@@ -22,12 +22,9 @@ resource "oci_load_balancer_listener" "this" {
 }
 
 resource "oci_load_balancer_backend_set" "this" {
-  #Required
   health_checker {
-    protocol = "HTTP"
-
-    port = 8080
-    # response_body_regex = var.backend_set_health_checker_response_body_regex
+    protocol    = "HTTP"
+    port        = 8080
     return_code = 200
     url_path    = "/"
   }

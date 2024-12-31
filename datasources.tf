@@ -14,3 +14,20 @@ data "cloudinit_config" "this" {
     content      = templatefile("${path.module}/cloud_config.yaml", local.db_config)
   }
 }
+
+data "oci_core_images" "these" {
+  compartment_id = var.tenancy_ocid
+
+  operating_system         = var.compute_instance_image.operating_system
+  operating_system_version = var.compute_instance_image.operating_system_version
+  sort_by                  = "DISPLAYNAME"
+  shape                    = var.compute_shape
+}
+
+data "oci_core_services" "these" {
+  filter {
+    name   = "name"
+    values = ["All"] // We want `all-arn-services-in-oracle-services-network`not only the Object Storage.
+    regex  = true
+  }
+}
