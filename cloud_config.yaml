@@ -4,18 +4,27 @@ write_files:
     permissions: "0644"
     content: |
       {
-        "user":  "${user}",
-        "password": "${password}",
-        "database": "${database}",
-        "netloc": "${hostname}:${mysql_db_port}"
+        "user":  "${db_user}",
+        "password": "${db_password}",
+        "database": "${db_name}",
+        "netloc": "${db_hostname}:${db_port}"
       }
-# Ubuntu images in OCI don't use the UFW tool to manage iptables, which is why we have to add a rule using iptables itself.
-# We use the -I argument to insert instead of -A to append because we want this rule at the top of the list.
-# Otherwise, a REJECT rule will take precedence and reject the traffic coming from the TCP port 8080.
 runcmd:
-  - iptables -I INPUT 1 -p tcp -s ${compute_instance_ip} --dport 8080 -j ACCEPT
+  # Ubuntu images in OCI don't use the UFW tool to manage iptables, which is why we have to add a rule using iptables itself.
+  # We use the -I argument to insert instead of -A to append because we want this rule at the top of the list.
+  # This allows 8080 traffic from the public subnet where the frontend Load Balancer resides.
+  # Otherwise, a REJECT rule will take precedence and reject the traffic coming from the TCP port 8080.
+  - iptables -I INPUT 1 -p tcp -s ${public_subnet_cidr} --dport 8080 -j ACCEPT
   - iptables-save > /etc/iptables/rules.v4
+  # The rules in iptables don't persist. We can get them to persist with the iptables-persistent package.
   - netfilter-persistent save
+
+  # The Web application is directly dependent on a MySQL database existing, which is why we need to create it before starting the server.
+  # One thing that is particularly noteworthy is that, for the below to be in a cloud-init friendly format,
+  # there shouldn't be a space between -p and its value.
+  # More information here: https://dev.mysql.com/doc/refman/8.4/en/mysql-command-options.html#option_mysql_waithttps://dev.mysql.com/doc/refman/8.4/en/mysql-command-options.html#option_mysql_password
+  - mysql -h ${db_hostname} -u ${db_user} -p'${db_password}' -e "CREATE DATABASE IF NOT EXISTS ${db_name};" --connect-timeout=60
+
   - curl -sL https://api.github.com/repos/scottwinkler/vanilla-webserver-src/releases/latest | jq -r ".assets[].browser_download_url" | wget -qi -
   - unzip deployment.zip
   - ./deployment/server
@@ -26,3 +35,4 @@ packages:
   - wget
   - unzip
   - iptables-persistent
+  - mysql-client

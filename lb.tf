@@ -1,5 +1,4 @@
 resource "oci_load_balancer_load_balancer" "this" {
-  #Required
   compartment_id = var.tenancy_ocid
   display_name   = "${var.namespace}-lb"
   shape          = "flexible"

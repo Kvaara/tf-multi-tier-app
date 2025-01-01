@@ -11,6 +11,7 @@ mysql_db_info = {
   port           = 3306
   admin_username = "admin"
   hostname_label = "mysql-db"
+  db_name        = "pets"
 }
 compute_instance_image = {
   operating_system         = "Canonical Ubuntu"
