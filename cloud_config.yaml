@@ -7,17 +7,15 @@ write_files:
         "user":  "${user}",
         "password": "${password}",
         "database": "${database}",
-        "netloc": "${hostname}:${port}"
+        "netloc": "${hostname}:${mysql_db_port}"
       }
 # Ubuntu images in OCI don't use the UFW tool to manage iptables, which is why we have to add a rule using iptables itself.
 # We use the -I argument to insert instead of -A to append because we want this rule at the top of the list.
-# Otherwise, an ICMP Reject rule will take precedence and reject the traffic coming from the TCP port 8080.
+# Otherwise, a REJECT rule will take precedence and reject the traffic coming from the TCP port 8080.
 runcmd:
-  - iptables -I INPUT 1 -p tcp -m state --state NEW -m tcp --dport 8080 -j ACCEPT
-  - iptables -I OUTPUT 1 -p tcp --dport 3306 -j ACCEPT
+  - iptables -I INPUT 1 -p tcp -s ${compute_instance_ip} --dport 8080 -j ACCEPT
   - iptables-save > /etc/iptables/rules.v4
   - netfilter-persistent save
-  - iptables -L
   - curl -sL https://api.github.com/repos/scottwinkler/vanilla-webserver-src/releases/latest | jq -r ".assets[].browser_download_url" | wget -qi -
   - unzip deployment.zip
   - ./deployment/server

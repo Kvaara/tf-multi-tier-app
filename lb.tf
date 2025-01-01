@@ -35,7 +35,7 @@ resource "oci_load_balancer_backend_set" "this" {
 
 resource "oci_load_balancer_backend" "this" {
   backendset_name  = oci_load_balancer_backend_set.this.name
-  ip_address       = oci_core_instance.this.private_ip
+  ip_address       = local.compute_instance_ip
   load_balancer_id = oci_load_balancer_load_balancer.this.id
   port             = 8080
 }

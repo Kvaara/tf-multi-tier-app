@@ -102,7 +102,7 @@ resource "oci_core_network_security_group_security_rule" "for_compute_instance2"
   direction                 = "EGRESS"
   protocol                  = "6"
 
-  description = "Allow any type of traffic to any IPv4 IP address via NAT Gateway (one-way/outbound). This is required for us to download the multi-tier web application server. Also allows MySQL management over TCP port 3306"
+  description = "Allow any type of traffic to any IPv4 IP address via NAT Gateway (one-way/outbound). This is required for us to download the multi-tier web application server. Also allows MySQL management."
 
   destination      = "0.0.0.0/0"
   destination_type = "CIDR_BLOCK"
@@ -159,8 +159,8 @@ resource "oci_core_security_list" "for_private_subnet" {
     description = "Allow MySQL database to accept connections from multi-tier web application server."
     protocol    = 6
     tcp_options {
-      min = 3306
-      max = 3306
+      min = var.mysql_db_info.port
+      max = var.mysql_db_info.port
     }
   }
 }

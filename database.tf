@@ -16,4 +16,5 @@ resource "oci_mysql_mysql_db_system" "this" {
   admin_username      = var.mysql_db_info.admin_username
   hostname_label      = var.mysql_db_info.hostname_label
   port                = var.mysql_db_info.port
+  ip_address          = local.mysql_db_ip
 }

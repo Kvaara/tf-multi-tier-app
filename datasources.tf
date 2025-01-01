@@ -11,7 +11,7 @@ data "cloudinit_config" "this" {
     // All of the content types can be found here: 
     // https://cloudinit.readthedocs.io/en/latest/explanation/format.html#user-data-formats-content-types
     content_type = "text/cloud-config"
-    content      = templatefile("${path.module}/cloud_config.yaml", local.db_config)
+    content      = templatefile("${path.module}/cloud_config.yaml", local.server_config)
   }
 }
 
