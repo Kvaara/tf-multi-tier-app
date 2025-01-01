@@ -1,6 +1,6 @@
 # Still Not There Yet...
 
-This should've been a super-quick Terraform project to showcase its power on OCI instead of AWS and test my skills, but all this project did was show me how incompetent I still am... This was more like "super-slow" because 3 hours turned into 3 days.
+This should've been a super-quick Terraform project to showcase its power on OCI instead of AWS and test my skills, but all this project did was show me how incompetent I still am... This was more like "super-slow" because 3 hours turned into 2 days.
 
 ## How To Deploy
 
