@@ -1,7 +1,7 @@
 locals {
   server_config = {
     db_user            = var.mysql_db_info.admin_username
-    db_password        = nonsensitive(random_password.password.result)
+    db_password        = random_password.password.result
     db_name            = var.mysql_db_info.db_name
     db_hostname        = oci_mysql_mysql_db_system.this.endpoints[0].hostname
     db_ip              = local.mysql_db_ip
